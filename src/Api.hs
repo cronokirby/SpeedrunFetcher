@@ -27,3 +27,8 @@ fetchAbbreviation :: Url -> IO (Either String String)
 fetchAbbreviation url = do
     let json = fetchJSON url
     parseGameWith abbreviation json
+
+fetchLeaderboard :: String -> Url -> IO (Either String String)
+fetchLeaderboard catName url = do
+    let json = fetchJSON url
+    parseLeaderboard catName json
