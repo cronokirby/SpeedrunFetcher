@@ -5,9 +5,9 @@ description:         Please see README.md
 homepage:            https://github.com/githubuser/SpeedrunFetcher#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
+author:              Lúcás Meier
 maintainer:          example@example.com
-copyright:           2016 Author name here
+copyright:           2016 Lúcás Meier
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md

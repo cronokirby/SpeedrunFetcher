@@ -3,16 +3,17 @@ module Api where
 
 import Network.HTTP.Conduit (simpleHttp)
 import Data.Aeson
-import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Lazy (ByteString)
 
 import Parsing
 
 type Url = String
+type Json = IO ByteString
 
 testUrl :: Url
 testUrl = "http://www.speedrun.com/api/v1/games/j1l7pvdg/categories"
 
-fetchJSON :: Url -> IO B.ByteString
+fetchJSON :: Url -> Json
 fetchJSON = simpleHttp
 
 
