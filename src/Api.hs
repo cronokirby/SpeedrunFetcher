@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Api where
+module Api ( fetchCategories, fetchAbbreviation ) where
 
 import Network.HTTP.Conduit (simpleHttp)
 import Data.Aeson
@@ -21,3 +21,9 @@ fetchCategories :: Url -> IO (Either String [String])
 fetchCategories url = do
     let json = fetchJSON url
     parseCategories json
+
+
+fetchAbbreviation :: Url -> IO (Either String String)
+fetchAbbreviation url = do
+    let json = fetchJSON url
+    parseGameWith abbreviation json

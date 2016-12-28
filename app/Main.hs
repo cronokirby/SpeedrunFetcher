@@ -13,8 +13,10 @@ main = do
 
 handleCommand :: [String] -> IO ()
 handleCommand (command:xs)
-    | command == "--help" = putStrLn
-        "Use '--categories gamename' to get a list of categories for a game"
+    | command == "--help" = putStrLn $
+        "Use '--categories gamename' to get a list of categories for a game\n"
+        ++ "Use '--search GameName' to find the abbreviation for a game"
+    | command == "--search" = search $ unwords xs
 handleCommand (command:arg:xs)
     | command == "--categories" = categories arg
 
@@ -23,9 +25,17 @@ categories :: GameName -> IO ()
 categories abbreviation = do
     let url = "http://www.speedrun.com/api/v1/games/"
             ++ abbreviation ++ "/categories"
-    putStrLn url
     categories <- fetchCategories url
     case categories of
         Left err -> putStrLn err
         Right cats -> putStrLn $ "Here's a list of categories for "
                             ++ abbreviation ++ ":\n" ++ show cats
+
+search :: GameName -> IO ()
+search gameName = do
+    let url = "http://www.speedrun.com/api/v1/games?name=" ++ gameName
+    abbreviation <- fetchAbbreviation url
+    case abbreviation of
+        Left err -> putStrLn err
+        Right abbr -> putStrLn $ "The abbreviation for '" ++ gameName
+                              ++ "' is:\n" ++ abbr
