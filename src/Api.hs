@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Api ( fetchCategories, fetchAbbreviation ) where
+module Api ( fetchCategories, fetchAbbreviation
+           , fetchLeaderboard, fetchTime ) where
 
 import Data.Maybe
 import Data.Aeson
@@ -29,7 +30,7 @@ fetchAbbreviation url = do
     let json = fetchJSON url
     parseGameWith abbreviation json
 
-fetchLeaderboard :: String -> Url -> IO (Either String String)
+fetchLeaderboard :: String -> Url -> IO (Either String Url)
 fetchLeaderboard catName url = do
     let json = fetchJSON url
     parseLeaderboard catName json
@@ -39,12 +40,30 @@ type Rank = String  -- I.E. WR, 1st place time
 runToString :: IO (Either String Run) -> Rank -> IO (Either String String)
 runToString parsedRun rank= do
     run <- parsedRun
-    return $ case run of
-        Left err -> Left err
-        Right runInfo -> Right $ process runInfo
+    case run of
+        Left err -> return $ Left err
+        Right runInfo -> process runInfo
         where
-          process :: Run -> String
-          process run = "The " ++ rank ++ "is " ++ timeString ++ " by " ++ name
-              where
-                name = fromMaybe "fetchName $ userLink run" $ playerName run
-                timeString = "formatTime $ time run"
+          process :: Run -> IO (Either String String)
+          process run = do
+              name <- fetchName (playerName run) (userLink run)
+              let timeString = formatTime $ time run
+              return $
+                (++) <$> ((++) <$>
+                Right ("The " ++ rank ++ " is " ++ timeString ++ " by ")
+                <*> name) <*> Right ("\n" ++ video run)
+
+
+fetchName :: Maybe String -> Url -> IO (Either String String)
+fetchName (Just name) _ = return $ Right name
+fetchName Nothing url = do
+    let json = fetchJSON url
+    parseUser json
+
+
+fetchTime :: Int -> Url -> IO (Either String String)
+fetchTime place url = do
+    let json = fetchJSON url
+    let runData = parseRun place json
+    let rankString = rank place
+    runToString runData rankString

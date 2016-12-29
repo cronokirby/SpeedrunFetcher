@@ -16,9 +16,15 @@ handleCommand (command:xs)
     | command == "--help" = putStrLn $
         "Use '--categories gamename' to get a list of categories for a game\n"
         ++ "Use '--search GameName' to find the abbreviation for a game"
-    | command == "--search" = search $ unwords xs
 handleCommand (command:arg:xs)
     | command == "--categories" = categories arg
+    | command == "--search"     = search arg
+handleCommand (command:game:xs)
+    | command == "--wr" = getTime 1 game (unwords xs)
+handleCommand (command:place:game:xs)
+    | command == "--time" = getTime (read place) game (unwords xs)
+handleCommand _ = putStrLn "unkown command"
+
 
 type GameName = String
 categories :: GameName -> IO ()
@@ -39,3 +45,17 @@ search gameName = do
         Left err -> putStrLn err
         Right abbr -> putStrLn $ "The abbreviation for '" ++ gameName
                               ++ "' is:\n" ++ abbr
+
+
+getTime :: Int -> GameName -> String -> IO ()
+getTime place abbreviation catName = do
+    let catUrl = "http://www.speedrun.com/api/v1/games/"
+            ++ abbreviation ++ "/categories"
+    leaderboard <- fetchLeaderboard catName catUrl
+    case leaderboard of
+        Left err -> putStrLn err
+        Right url -> do
+            runString <- fetchTime (place-1) url
+            case runString of
+                Left err -> putStrLn err
+                Right info -> putStrLn info
