@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Parsing ( parseCategories
+module Speedrun.Parsing ( parseCategories
                , Game (..)
                , parseGameWith
                , parseLeaderboard

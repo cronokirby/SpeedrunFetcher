@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Api ( fetchCategories, fetchAbbreviation
+module Speedrun.Api ( fetchCategories, fetchAbbreviation
            , fetchLeaderboard, fetchTime ) where
 
 import Data.Aeson
 import Data.ByteString.Lazy (ByteString)
 import Network.HTTP.Conduit (simpleHttp)
 
-import Parsing
+import Speedrun.Parsing
 
 type Url = String
 type Json = IO ByteString
