@@ -59,7 +59,7 @@ search dashedName = do
     abbreviation <- abbreviate dashedName
     case abbreviation of
         Left err -> putStrLn err
-        Right abbr -> putStrLn $ "The abbreviation for '" ++ gameName
+        Right abbr -> putStrLn $ "The abbreviation for '" ++ dashedName
                               ++ "' is:\n" ++ abbr
 
 
