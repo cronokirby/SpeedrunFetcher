@@ -2,7 +2,8 @@ module Main where
 
 import Control.Monad
 
-import Api
+import Api ( fetchCategories, fetchAbbreviation
+           , fetchLeaderboard, fetchTime )
 
 main :: IO ()
 main = do
@@ -34,6 +35,7 @@ handleCommand _ = putStrLn "unkown command"
 
 
 type GameName = String
+
 categories :: GameName -> IO ()
 categories abbreviation = do
     let url = "http://www.speedrun.com/api/v1/games/"
@@ -44,11 +46,17 @@ categories abbreviation = do
         Right cats -> putStrLn $ "Here's a list of categories for "
                             ++ abbreviation ++ ":\n" ++ show cats
 
-search :: GameName -> IO ()
-search dashedName = do
+
+abbreviate :: GameName -> IO (Either String String)
+abbreviate dashedName = do
     let gameName = map (\c -> if c == '-' then ' ' else c) dashedName
     let url = "http://www.speedrun.com/api/v1/games?name=" ++ gameName
-    abbreviation <- fetchAbbreviation url
+    fetchAbbreviation url
+
+
+search :: GameName -> IO ()
+search dashedName = do
+    abbreviation <- abbreviate dashedName
     case abbreviation of
         Left err -> putStrLn err
         Right abbr -> putStrLn $ "The abbreviation for '" ++ gameName
@@ -68,12 +76,11 @@ getTime place catName abbreviation  = do
                 Left err -> putStrLn err
                 Right runString -> putStrLn runString
 
+
 --Fetches the abbreviation for a game, before calling a function with that
 abbreviated :: (GameName -> IO ()) -> String -> IO ()
 abbreviated func dashedName = do
-    let gameName = map (\c -> if c == '-' then ' ' else c) dashedName
-    let url = "http://www.speedrun.com/api/v1/games?name=" ++ gameName
-    abbreviation <- fetchAbbreviation url
+    abbreviation <- abbreviate dashedName
     case abbreviation of
         Left err -> putStrLn err
         Right abbreviation -> func abbreviation

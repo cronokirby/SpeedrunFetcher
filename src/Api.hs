@@ -2,7 +2,6 @@
 module Api ( fetchCategories, fetchAbbreviation
            , fetchLeaderboard, fetchTime ) where
 
-import Data.Maybe
 import Data.Aeson
 import Data.ByteString.Lazy (ByteString)
 import Network.HTTP.Conduit (simpleHttp)
@@ -11,9 +10,6 @@ import Parsing
 
 type Url = String
 type Json = IO ByteString
-
-testUrl :: Url
-testUrl = "http://www.speedrun.com/api/v1/games/j1l7pvdg/categories"
 
 fetchJSON :: Url -> Json
 fetchJSON = simpleHttp
@@ -30,10 +26,12 @@ fetchAbbreviation url = do
     let json = fetchJSON url
     parseGameWith abbreviation json
 
+
 fetchLeaderboard :: String -> Url -> IO (Either String Url)
 fetchLeaderboard catName url = do
     let json = fetchJSON url
     parseLeaderboard catName json
+
 
 -- needs IO for fetching a name, converts a Run into a tuple of info
 type Rank = String  -- I.E. WR, 1st place time
