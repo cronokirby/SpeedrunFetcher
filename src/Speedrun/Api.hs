@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Speedrun.Api ( fetchCategories, fetchAbbreviation
-           , fetchLeaderboard, fetchTime ) where
+                    , fetchLeaderboard, fetchTime ) where
 
+import Data.Bifunctor
 import Data.Aeson
 import Data.ByteString.Lazy (ByteString)
 import Network.HTTP.Conduit (simpleHttp)
+import Text.Printf
 
 import Speedrun.Parsing
 
@@ -16,52 +18,32 @@ fetchJSON = simpleHttp
 
 
 fetchCategories :: Url -> IO (Either String [String])
-fetchCategories url = do
-    let json = fetchJSON url
-    parseCategories json
+fetchCategories = parseCategories . fetchJSON
 
 
 fetchAbbreviation :: Url -> IO (Either String String)
-fetchAbbreviation url = do
-    let json = fetchJSON url
-    parseGameWith abbreviation json
-
+fetchAbbreviation = parseGameWith abbreviation . fetchJSON
 
 fetchLeaderboard :: String -> Url -> IO (Either String Url)
-fetchLeaderboard catName url = do
-    let json = fetchJSON url
-    parseLeaderboard catName json
+fetchLeaderboard catName = parseLeaderboard catName . fetchJSON
 
 
 -- needs IO for fetching a name, converts a Run into a tuple of info
 type Rank = String  -- I.E. WR, 1st place time
 runToString :: IO (Either String Run) -> Rank -> IO (Either String String)
-runToString parsedRun rank= do
-    run <- parsedRun
-    case run of
-        Left err -> return $ Left err
-        Right runInfo -> process runInfo
-        where
-          process :: Run -> IO (Either String String)
-          process run = do
-              name <- fetchName (playerName run) (userLink run)
-              let timeString = formatTime $ time run
-              return $
-                (++) <$> ((++) <$>
-                Right ("The " ++ rank ++ " is " ++ timeString ++ " by ")
-                <*> name) <*> Right ("\n" ++ video run)
+runToString parsedRun rank = parsedRun >>= either (return . Left) process
+  where
+    process :: Run -> IO (Either String String)
+    process run =
+      let timeString = formatTime $ time run
+      in fmap (\name ->
+               printf "The %s is %s by %s\n%s" rank timeString name (video run))
+         <$> fetchName (playerName run) (userLink run)
 
 
 fetchName :: Maybe String -> Url -> IO (Either String String)
-fetchName (Just name) _ = return $ Right name
-fetchName Nothing url = do
-    let json = fetchJSON url
-    parseUser json
+fetchName mayName url = maybe (parseUser $ fetchJSON url) (return . Right) mayName
 
 
 fetchTime :: Int -> Url -> IO (Either String String)
-fetchTime place url = do
-    let json = fetchJSON url
-    let runData = parseRun place json
-    let rankString = rank place
-    runToString runData rankString
+fetchTime place = (flip runToString (rank place) . parseRun place) . fetchJSON
