@@ -21,6 +21,8 @@ library
                      , aeson
                      , http-conduit
                      , bytestring
+                     , mtl
+                     , either == 4.*
   default-language:    Haskell2010
 
 executable SpeedrunFetcher-exe

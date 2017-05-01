@@ -1,16 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-module Speedrun.Parsing ( parseCategories
-               , Game (..)
-               , parseGameWith
-               , parseLeaderboard
-               , Run (..)
-               , parseRun
-               , formatTime
-               , parseUser
-               , rank) where
+module Speedrun.Parsing
+      ( parseCategories
+      , ParseResult (..)
+      , Game (..)
+      , parseGameWith
+      , parseLeaderboard
+      , Run (..)
+      , parseRun
+      , formatTime
+      , parseUser
+      , rank) where
 
 import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Either
 import Data.Aeson
 import Data.ByteString.Lazy (ByteString)
 -- Just imported for resolvename, which has to be here cause of Circular depends
@@ -19,14 +23,14 @@ import Network.HTTP.Conduit (simpleHttp)
 
 type Json = IO ByteString
 type Url = String
+type ParseResult a = EitherT String IO a
 
 fetchJSON :: Url -> Json
 fetchJSON = simpleHttp
 
 
-liftJson :: FromJSON a => (a -> b) -> Json -> IO (Either String b)
-liftJson = fmap . (. eitherDecode) . fmap
-
+liftJson :: FromJSON a => (a -> b) -> Json -> ParseResult b
+liftJson f = fmap f . EitherT . fmap eitherDecode
 
 data CategoryData = CategoryData { cats :: [Category] } deriving (Show)
 instance FromJSON CategoryData where
@@ -41,12 +45,12 @@ instance FromJSON Category where
         <*> (last <$> o .: "links" >>= (.: "uri"))
 
 
-parseCategories :: Json -> IO (Either String [String])
+parseCategories :: Json -> ParseResult [String]
 parseCategories = liftJson (map catName . cats)
 
 
-parseLeaderboard :: String -> Json -> IO (Either String Url)
-parseLeaderboard cat = fmap (eitherDecode >=> getCat)
+parseLeaderboard :: String -> Json -> ParseResult Url
+parseLeaderboard cat = EitherT . fmap (eitherDecode >=> getCat)
   where
     getCat catData = case filter ((== cat) . catName) (cats catData) of
       [] -> Left "That category doesn't exist"
@@ -63,7 +67,7 @@ instance FromJSON Game where
         where gameData = head <$> o .: "data"
 
 -- Needs to be given one of the record functions
-parseGameWith :: (Game -> String) -> Json -> IO (Either String String)
+parseGameWith :: (Game -> String) -> Json -> ParseResult String
 parseGameWith = liftJson
 
 
@@ -86,7 +90,7 @@ instance FromJSON Run where
           run    = o .: "run"
           player = head <$> (o .: "run" >>= (.: "players"))
 
-parseRun :: Int -> Json -> IO (Either String Run)
+parseRun :: Int -> Json -> ParseResult Run
 parseRun place = liftJson ((!! place) . runs)
 
 
@@ -109,9 +113,8 @@ instance FromJSON User where
     parseJSON (Object o) = User
         <$> ((o .: "data") >>= (.: "names") >>= (.: "international"))
 
-parseUser :: Json -> IO (Either String String)
+parseUser :: Json -> ParseResult String
 parseUser = liftJson userName
-
 
 rank :: Int -> String   --shifted, because place is used as the run Index
 rank 0 = "WR"

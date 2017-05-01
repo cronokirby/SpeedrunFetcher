@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Speedrun.Api ( fetchCategories, fetchAbbreviation
-                    , fetchLeaderboard, fetchTime ) where
+                    , fetchLeaderboard, fetchTime, ParseResult(..)) where
 
 import Data.Bifunctor
 import Data.Aeson
@@ -17,33 +17,36 @@ fetchJSON :: Url -> Json
 fetchJSON = simpleHttp
 
 
-fetchCategories :: Url -> IO (Either String [String])
+fetchCategories :: Url -> ParseResult [String]
 fetchCategories = parseCategories . fetchJSON
 
 
-fetchAbbreviation :: Url -> IO (Either String String)
+fetchAbbreviation :: Url -> ParseResult String
 fetchAbbreviation = parseGameWith abbreviation . fetchJSON
 
-fetchLeaderboard :: String -> Url -> IO (Either String Url)
+fetchLeaderboard :: String -> Url -> ParseResult Url
 fetchLeaderboard catName = parseLeaderboard catName . fetchJSON
 
 
+-- Returns a function capable of printing a run
+fmtRun :: Rank -> Run -> ParseResult String
+fmtRun rank run = fmtName <$> fetchName (playerName run) (userLink run)
+  where
+    timeString = formatTime $ time run
+    fmtName n =
+      printf "The %s is %s by %s\n%s" rank timeString n (video run)
+
 -- needs IO for fetching a name, converts a Run into a tuple of info
 type Rank = String  -- I.E. WR, 1st place time
-runToString :: IO (Either String Run) -> Rank -> IO (Either String String)
-runToString parsedRun rank = parsedRun >>= either (return . Left) process
-  where
-    process :: Run -> IO (Either String String)
-    process run =
-      let timeString = formatTime $ time run
-      in fmap (\name ->
-               printf "The %s is %s by %s\n%s" rank timeString name (video run))
-         <$> fetchName (playerName run) (userLink run)
+runToString :: Rank -> ParseResult Run -> ParseResult String
+runToString = (=<<) . fmtRun
 
 
-fetchName :: Maybe String -> Url -> IO (Either String String)
-fetchName mayName url = maybe (parseUser $ fetchJSON url) (return . Right) mayName
+
+fetchName :: Maybe String -> Url -> ParseResult String
+fetchName mayName url =
+  maybe (parseUser $ fetchJSON url) return mayName
 
 
-fetchTime :: Int -> Url -> IO (Either String String)
-fetchTime place = (flip runToString (rank place) . parseRun place) . fetchJSON
+fetchTime :: Int -> Url -> ParseResult String
+fetchTime place = (runToString (rank place) . parseRun place) . fetchJSON

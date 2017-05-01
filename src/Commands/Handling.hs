@@ -1,12 +1,15 @@
 module Commands.Handling ( handleCommand ) where
 
 import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.Trans.Either
 import Speedrun.Api ( fetchCategories, fetchAbbreviation
                     , fetchLeaderboard, fetchTime )
+import Speedrun.Parsing ( ParseResult (..) )
 
 
-printErr :: (a -> IO ()) -> Either String a -> IO ()
-printErr = either putStrLn
+printErr :: (a -> IO ()) -> ParseResult a -> IO ()
+printErr = eitherT putStrLn
 
 
 helpMsg :: String
@@ -38,14 +41,16 @@ handleCommand _ = putStrLn "unkown command"
 type GameName = String
 
 categories :: GameName -> IO ()
-categories abbreviation = fetchCategories url >>= printErr display
+categories abbreviation = printErr display $ fetchCategories url
   where
-    url = "http://www.speedrun.com/api/v1/games/" ++ abbreviation ++ "/categories"
+    url = "http://www.speedrun.com/api/v1/games/"
+       ++ abbreviation
+       ++ "/categories"
     display = putStrLn .
       (("Here's a list of categories for " ++ abbreviation ++ ":\n") ++) . show
 
 
-abbreviate :: GameName -> IO (Either String String)
+abbreviate :: GameName -> ParseResult String
 abbreviate = fetchAbbreviation . gameUrl
   where  -- Replace all dashes with spaces, prepend the root
     gameUrl = ("http://www.speedrun.com/api/v1/games?name=" ++) .
@@ -53,19 +58,20 @@ abbreviate = fetchAbbreviation . gameUrl
 
 
 search :: GameName -> IO ()
-search dashedName = abbreviate dashedName >>= printErr display
+search dashedName = printErr display $ abbreviate dashedName
   where
     display abbr = putStrLn $
       "The abbreviation for '" ++ dashedName ++ "' is:\n" ++ abbr
 
 
 getTime :: Int -> String -> GameName -> IO ()
-getTime place catName abbreviation = fetchLeaderboard catName catUrl >>= display
+getTime place catName abbreviation = printErr putStrLn $
+  fetchLeaderboard catName catUrl >>= fetchTime (place - 1)
   where
-    catUrl = "http://www.speedrun.com/api/v1/games/" ++ abbreviation ++ "/categories"
-    display = printErr (printErr putStrLn <=< fetchTime (place - 1))
+    catUrl = "http://www.speedrun.com/api/v1/games/"
+          ++ abbreviation ++ "/categories"
 
 
 --Fetches the abbreviation for a game, before calling a function with that
 abbreviated :: (GameName -> IO ()) -> String -> IO ()
-abbreviated func = printErr func <=< abbreviate
+abbreviated func = printErr func . abbreviate
